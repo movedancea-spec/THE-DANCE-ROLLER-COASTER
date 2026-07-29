@@ -355,6 +355,42 @@
   .wa-fab:hover{ transform: translateY(-2px) scale(1.03); }
   .wa-fab .ico{ font-size:17px; }
 
+  .photo-fab{
+    position: fixed; left:18px; bottom:18px; z-index: 130;
+    background: linear-gradient(135deg,var(--gold-deep),var(--gold)); color:#241a05; border:none; border-radius:999px;
+    padding: 13px 18px; font-family:'Poppins',sans-serif; font-weight:700; font-size:13px;
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    box-shadow: 0 8px 20px rgba(0,0,0,.4);
+    transition: transform .15s ease;
+  }
+  .photo-fab:hover{ transform: translateY(-2px) scale(1.03); }
+
+  .photo-modal{
+    position: fixed; left:50%; top:50%; transform: translate(-50%,-50%) scale(.94);
+    background: linear-gradient(180deg, var(--card-hi), var(--card));
+    border: 1px solid rgba(243,210,122,.35);
+    border-radius: 22px; width: min(440px, 92vw); max-height: 88vh; overflow-y:auto;
+    padding: 22px; box-shadow: 0 30px 70px rgba(0,0,0,.6);
+    z-index: 160; opacity:0; pointer-events:none; transition: all .25s ease;
+    color: var(--cream);
+  }
+  .photo-modal.open{ opacity:1; pointer-events:auto; transform: translate(-50%,-50%) scale(1); }
+  .photo-modal h2{
+    font-family:'Bebas Neue', sans-serif; font-weight:400; letter-spacing:.03em;
+    font-size:24px; margin:0 0 12px; color: var(--gold); text-align:center;
+  }
+  .photo-modal canvas{
+    width:100%; border-radius:14px; margin-bottom:16px; background:#000;
+  }
+  .photo-modal-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  .photo-modal-actions button{
+    flex:1; min-width:120px; border:none; border-radius:12px; padding:12px; font-weight:700; cursor:pointer;
+    font-family:'Poppins',sans-serif; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .photo-modal-actions .share{ background: linear-gradient(90deg,var(--gold-deep),var(--gold)); color:#241a05; }
+  .photo-modal-actions .download{ background: rgba(255,255,255,.08); color: var(--cream); }
+  .photo-modal-actions .close2{ background: rgba(255,255,255,.08); color: var(--cream); flex:0 0 100%; margin-top:4px; }
+
   @media (max-width:600px){
     .ticket{ width:100%; }
     .node .pin{ width:38px; height:38px; font-size:16px; }
@@ -394,6 +430,18 @@
 <footer>hecho con 💛 para el show · editá <code>GROUPS</code> y <code>SHOW_CONFIG</code> en el código</footer>
 
 <button class="wa-fab" id="waFab"><span class="ico">📲</span>Compartir</button>
+<button class="photo-fab" id="photoFab"><span class="ico">📸</span>Foto con marco</button>
+<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+
+<div class="photo-modal" id="photoModal">
+  <h2>¡Sonrían! 🎢</h2>
+  <canvas id="photoCanvas"></canvas>
+  <div class="photo-modal-actions">
+    <button class="share" id="photoShareBtn">📲 Compartir</button>
+    <button class="download" id="photoDownloadBtn">⬇️ Descargar</button>
+    <button class="close2" id="photoCloseBtn">Cerrar</button>
+  </div>
+</div>
 
 <div class="overlay" id="overlay"></div>
 
@@ -610,6 +658,7 @@ function closeTicket(){
   overlay.classList.remove('open');
   ticket.classList.remove('open');
   if(modal.classList.contains('open')) modal.classList.remove('open');
+  if(photoModal.classList.contains('open')) photoModal.classList.remove('open');
 }
 overlay.addEventListener('click', closeTicket);
 closeBtn.addEventListener('click', closeTicket);
@@ -626,6 +675,119 @@ shareActBtn.addEventListener('click', () => {
   if(currentGroupIndex === null) return;
   const g = GROUPS[currentGroupIndex];
   shareOnWhatsApp(`💃 ¡Ya casi llega "${g.attraction}" (${g.theme})! Seguilo en vivo acá: ${window.location.href}`);
+});
+
+/* ---------- foto con marco (logo del show) ---------- */
+const photoFab = document.getElementById('photoFab');
+const cameraInput = document.getElementById('cameraInput');
+const photoModal = document.getElementById('photoModal');
+const photoCanvas = document.getElementById('photoCanvas');
+const photoShareBtn = document.getElementById('photoShareBtn');
+const photoDownloadBtn = document.getElementById('photoDownloadBtn');
+const photoCloseBtn = document.getElementById('photoCloseBtn');
+
+function loadImg(src){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+photoFab.addEventListener('click', () => cameraInput.click());
+
+cameraInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  try{
+    const photo = await loadImg(url);
+    const logo = await loadImg('logo-dance-rollercoaster.png');
+    const academyLogo = await loadImg('logo-academia-move.png');
+
+    photoCanvas.width = photo.width;
+    photoCanvas.height = photo.height;
+    const ctx = photoCanvas.getContext('2d');
+    ctx.drawImage(photo, 0, 0);
+
+    // tamaños de cada logo, manteniendo su proporción
+    const showLogoW = photo.width * 0.34;
+    const showLogoH = showLogoW * (logo.height / logo.width);
+    const academyLogoW = photo.width * 0.20;
+    const academyLogoH = academyLogoW * (academyLogo.height / academyLogo.width);
+    const gap = photo.width * 0.03;
+    const pad = photo.width * 0.025;
+
+    const barH = Math.max(showLogoH, academyLogoH) + pad * 2;
+    ctx.fillStyle = 'rgba(10,11,31,0.65)';
+    ctx.fillRect(0, photo.height - barH, photo.width, barH);
+
+    // fondo blanco suave detrás del logo de la academia para que se lea bien (tiene texto rosa fino)
+    const totalW = academyLogoW + gap + showLogoW;
+    const startX = (photo.width - totalW) / 2;
+
+    const academyY = photo.height - barH/2 - academyLogoH/2;
+    const showY = photo.height - barH/2 - showLogoH/2;
+
+    const chipPad = photo.width * 0.012;
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    roundRect(ctx, startX - chipPad, academyY - chipPad, academyLogoW + chipPad*2, academyLogoH + chipPad*2, 10);
+    ctx.fill();
+
+    ctx.drawImage(academyLogo, startX, academyY, academyLogoW, academyLogoH);
+    ctx.drawImage(logo, startX + academyLogoW + gap, showY, showLogoW, showLogoH);
+
+    photoModal.classList.add('open');
+    overlay.classList.add('open');
+  }catch(err){
+    console.error(err);
+  }
+  cameraInput.value = '';
+});
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function closePhotoModal(){
+  photoModal.classList.remove('open');
+  overlay.classList.remove('open');
+}
+photoCloseBtn.addEventListener('click', closePhotoModal);
+
+photoDownloadBtn.addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.href = photoCanvas.toDataURL('image/png');
+  link.download = 'the-dance-rollercoaster.png';
+  link.click();
+});
+
+photoShareBtn.addEventListener('click', () => {
+  photoCanvas.toBlob(async (blob) => {
+    const file = new File([blob], 'the-dance-rollercoaster.png', { type: 'image/png' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      try{
+        await navigator.share({
+          files: [file],
+          title: 'The Dance Rollercoaster',
+          text: '¡Mirá esta foto de nuestro show! 🎢✨'
+        });
+      }catch(err){ /* cancelado por el usuario, no hacer nada */ }
+    } else {
+      const link = document.createElement('a');
+      link.href = photoCanvas.toDataURL('image/png');
+      link.download = 'the-dance-rollercoaster.png';
+      link.click();
+      alert('Tu navegador no permite compartir directo. La foto se descargó — subila manualmente a Instagram desde tu galería.');
+    }
+  }, 'image/png');
 });
 
 function requestNotifyPermission(){
